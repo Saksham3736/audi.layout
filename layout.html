@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GNDEC Auditorium Seating Arrangement</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* ─── DESIGN TOKENS ─── */
+  :root {
+    --bg:         #0d0f14;
+    --bg2:        #13161e;
+    --panel:      #1a1e2a;
+    --border:     #252a38;
+    --text:       #e2e6f0;
+    --muted:      #6b7492;
+    --accent:     #4f9eff;
+
+    /* Section / group colors */
+    --sec-a1:    #e05c5c;   /* Section A – Group A1  */
+    --sec-a2:    #e07a5c;   /* Section A – Group A2  */
+    --sec-b1:    #5c9ee0;   /* Section B – Group B1  */
+    --sec-b2:    #5cc4e0;   /* Section B – Group B2  */
+    --sec-t:     #a85ce0;   /* Section T             */
+    --empty:     #222636;   /* Reserved/empty seat   */
+    --vacant:    #1a1e2a;   /* Unoccupied seat       */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Rajdhani', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    text-align: center;
+    padding: 36px 20px 20px;
+    position: relative;
+  }
+  header::after {
+    content: '';
+    display: block;
+    width: 160px;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    margin: 16px auto 0;
+  }
+  header h1 {
+    font-size: clamp(20px, 4vw, 32px);
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #fff;
+  }
+  header p {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 1px;
+  }
+
+  /* ─── LEGEND ─── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px 24px;
+    padding: 16px 20px;
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .legend-dot {
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+
+  /* ─── MAIN WRAPPER ─── */
+  .wrapper {
+    display: flex;
+    gap: 20px;
+    padding: 24px 20px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  /* ─── AUDITORIUM ─── */
+  .auditorium {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* STAGE */
+  .stage-wrap {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+  .stage {
+    display: inline-block;
+    background: linear-gradient(135deg, #2a2f42, #1e2233);
+    border: 2px solid var(--accent);
+    border-radius: 6px;
+    padding: 12px 80px;
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: var(--accent);
+    box-shadow: 0 0 30px rgba(79,158,255,0.15);
+  }
+
+  /* ROWS */
+  .seating-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .row-wrap {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .row-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    width: 28px;
+    text-align: right;
+    flex-shrink: 0;
+    letter-spacing: 0.5px;
+  }
+
+  .row-seats {
+    display: flex;
+    gap: 4px;
+    flex-wrap: nowrap;
+  }
+
+  .aisle-gap {
+    width: 32px;
+    flex-shrink: 0;
+  }
+
+  /* SEAT */
+  .seat {
+    width: 38px;
+    height: 38px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 8px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    position: relative;
+    border: 1px solid rgba(255,255,255,0.06);
+    overflow: hidden;
+    text-align: center;
+    line-height: 1.2;
+    padding: 2px;
+    word-break: break-word;
+    white-space: normal;
+  }
+  .seat:hover { transform: scale(1.15); z-index: 10; }
+  .seat:hover .tooltip { display: block; }
+
+  .seat.empty   { background: var(--empty); cursor: default; }
+  .seat.vacant  { background: var(--vacant); border: 1px dashed var(--border); }
+  .seat.a1      { background: var(--sec-a1); color: #fff; }
+  .seat.a2      { background: var(--sec-a2); color: #fff; }
+  .seat.b1      { background: var(--sec-b1); color: #fff; }
+  .seat.b2      { background: var(--sec-b2); color: #fff; }
+  .seat.t       { background: var(--sec-t);  color: #fff; }
+
+  /* TOOLTIP */
+  .tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background: #111827;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    white-space: nowrap;
+    z-index: 100;
+    pointer-events: none;
+    color: #fff;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+  }
+  .tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%; left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: var(--accent);
+  }
+  .tooltip .t-name { font-size: 14px; font-weight: 700; }
+  .tooltip .t-seat { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .tooltip .t-grp  { font-size: 12px; margin-top: 4px; }
+
+  /* ─── SIDE PANEL ─── */
+  .side-panel {
+    width: 300px;
+    flex-shrink: 0;
+  }
+
+  .panel-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .panel-box h3 {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+  }
+
+  /* stats */
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    font-weight: 600;
+  }
+  .stat-row:last-child { border-bottom: none; }
+  .stat-label { color: var(--muted); font-size: 13px; }
+  .stat-val   { font-family: 'IBM Plex Mono', monospace; font-size: 15px; }
+
+  /* student list */
+  .student-list { display: flex; flex-direction: column; gap: 8px; }
+  .student-card {
+    background: var(--bg2);
+    border-radius: 6px;
+    padding: 10px 12px;
+    border-left: 3px solid;
+    font-size: 13px;
+  }
+  .student-card .sname { font-weight: 700; font-size: 14px; margin-bottom: 3px; }
+  .student-card .sinfo { color: var(--muted); font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+
+  .filter-bar {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .filter-btn {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    border: none;
+    border-radius: 4px;
+    padding: 5px 12px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+    color: #fff;
+  }
+  .filter-btn.active { outline: 2px solid #fff; }
+  .filter-btn:not(.active) { opacity: 0.45; }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 900px) {
+    .wrapper { flex-direction: column; }
+    .side-panel { width: 100%; }
+    .seat { width: 28px; height: 28px; font-size: 7px; }
+    .aisle-gap { width: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>GNDEC · Auditorium Seating Arrangement</h1>
+  <p>B.Tech — Batch 2022 · Scheme 2018 · Semester 8</p>
+</header>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:var(--sec-a1)"></div>Section A – Group A1</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--sec-a2)"></div>Section A – Group A2</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--sec-b1)"></div>Section B – Group B1</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--sec-b2)"></div>Section B – Group B2</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--sec-t)"></div>Section T</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--empty)"></div>Reserved / Empty Row</div>
+  <div class="legend-item"><div class="legend-dot" style="background:var(--vacant); border:1px dashed #333"></div>Vacant Seat</div>
+</div>
+
+<div class="wrapper">
+  <div class="auditorium">
+    <div class="stage-wrap">
+      <div class="stage">▲ STAGE ▲</div>
+    </div>
+    <div class="seating-grid" id="grid"></div>
+  </div>
+
+  <div class="side-panel">
+    <div class="panel-box">
+      <h3>Statistics</h3>
+      <div class="stat-row"><span class="stat-label">Total Students</span><span class="stat-val" id="stat-total">34</span></div>
+      <div class="stat-row"><span class="stat-label">Section A</span><span class="stat-val" id="stat-a">—</span></div>
+      <div class="stat-row"><span class="stat-label">Section B</span><span class="stat-val" id="stat-b">—</span></div>
+      <div class="stat-row"><span class="stat-label">Section T</span><span class="stat-val" id="stat-t">—</span></div>
+      <div class="stat-row"><span class="stat-label">Seats Used</span><span class="stat-val" id="stat-used">—</span></div>
+    </div>
+
+    <div class="panel-box">
+      <h3>Student Directory</h3>
+      <div class="filter-bar" id="filterBar"></div>
+      <div class="student-list" id="studentList"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════
+   STUDENT DATA
+   To modify: edit the `students` array below.
+   Fields: name, rollNo, section, group, gender
+══════════════════════════════════════════════ */
+const students = [
+  { name:"Ishaan Sachdeva",      rollNo:"2004432", section:"A", group:"A1", gender:"M" },
+  { name:"Aditya Vikrant",       rollNo:"2203289", section:"B", group:"B2", gender:"M" },
+  { name:"Anmolpreet Kaur",      rollNo:"2203291", section:"A", group:"A1", gender:"F" },
+  { name:"Arvind Kumar",         rollNo:"2203295", section:"A", group:"A1", gender:"M" },
+  { name:"Ashim Ahmed",          rollNo:"2203298", section:"A", group:"A1", gender:"M" },
+  { name:"Baljinder Singh",      rollNo:"2203299", section:"A", group:"A1", gender:"M" },
+  { name:"Bhavinder Singh",      rollNo:"2203302", section:"A", group:"A1", gender:"M" },
+  { name:"Gagandeep Singh",      rollNo:"2203308", section:"A", group:"A1", gender:"M" },
+  { name:"Gurchetanpreet Singh", rollNo:"2203310", section:"A", group:"A1", gender:"M" },
+  { name:"Gurpartap Singh",      rollNo:"2203311", section:"A", group:"A2", gender:"M" },
+  { name:"Harkanwal Singh Sandhu",rollNo:"2203315",section:"A", group:"A2", gender:"M" },
+  { name:"Harshdeep",            rollNo:"2203316", section:"A", group:"A2", gender:"M" },
+  { name:"Inderjeet Singh",      rollNo:"2203320", section:"A", group:"A2", gender:"M" },
+  { name:"Jagjiwan Singh",       rollNo:"2203322", section:"A", group:"A2", gender:"M" },
+  { name:"Jashandeep Kaur",      rollNo:"2203323", section:"A", group:"A2", gender:"F" },
+  { name:"Karman Singh Grewal",  rollNo:"2203327", section:"T", group:"T",  gender:"M" },
+  { name:"Kaushalpreet Kaur",    rollNo:"2203328", section:"A", group:"A2", gender:"F" },
+  { name:"Maanveer Kaur",        rollNo:"2203333", section:"B", group:"B1", gender:"F" },
+  { name:"Mitesh Karan",         rollNo:"2203337", section:"B", group:"B1", gender:"M" },
+  { name:"Nisha Kumari",         rollNo:"2203338", section:"B", group:"B1", gender:"F" },
+  { name:"Pawanpreet Singh",     rollNo:"2203340", section:"B", group:"B1", gender:"M" },
+  { name:"Raghav Sharma",        rollNo:"2203342", section:"B", group:"B1", gender:"M" },
+  { name:"Raushan Kumar",        rollNo:"2203344", section:"B", group:"B1", gender:"M" },
+  { name:"Shishir Chore",        rollNo:"2203349", section:"B", group:"B1", gender:"M" },
+  { name:"Shivpreet Singh",      rollNo:"2203350", section:"B", group:"B1", gender:"M" },
+  { name:"Shushank Shekhar",     rollNo:"2203351", section:"B", group:"B1", gender:"M" },
+  { name:"Souravpreet Singh",    rollNo:"2203353", section:"B", group:"B2", gender:"M" },
+  { name:"Syed Yasir Hussain",   rollNo:"2203355", section:"B", group:"B2", gender:"M" },
+  { name:"Vijay Kumar",          rollNo:"2203361", section:"B", group:"B2", gender:"M" },
+  { name:"Sachin Kumar",         rollNo:"2239902", section:"B", group:"B1", gender:"M" },
+  { name:"Anshul Kumar",         rollNo:"2302439", section:"B", group:"B2", gender:"M" },
+  { name:"Arandeep Kaur",        rollNo:"2302440", section:"B", group:"B2", gender:"F" },
+  { name:"Balraj Singh",         rollNo:"2302442", section:"B", group:"B2", gender:"M" },
+  { name:"Karanveer Singh",      rollNo:"2302448", section:"B", group:"B2", gender:"M" },
+];
+
+/* ══════════════════════════════════════════════
+   SEAT LAYOUT CONFIG
+   rows: total rows in auditorium (numbered from stage = Row 1)
+   seatsPerSide: seats on each side of aisle per row
+   emptyRows: row numbers (from stage) that are reserved/empty
+   Groups are assigned in this order:
+     A1 → A2 → T → B1 → B2
+   starting from Row 3 (rows 1 & 2 are empty)
+══════════════════════════════════════════════ */
+const TOTAL_ROWS      = 12;   // total rows
+const SEATS_PER_SIDE  = 10;   // seats per side per row
+const EMPTY_ROWS      = [1, 2]; // reserved rows (from stage)
+
+/* ─────────────────────────────── */
+/* Sort students: A1 → A2 → T → B1 → B2 */
+const groupOrder = { A1:0, A2:1, T:2, B1:3, B2:4 };
+const sorted = [...students].sort((a,b) =>
+  (groupOrder[a.group] ?? 9) - (groupOrder[b.group] ?? 9) || a.name.localeCompare(b.name)
+);
+
+/* Build seat pool: left side first per row, then right side */
+/* Rows from stage = Row 1. We skip EMPTY_ROWS. */
+const seatPool = [];
+for (let r = 1; r <= TOTAL_ROWS; r++) {
+  if (EMPTY_ROWS.includes(r)) continue;
+  for (let s = 1; s <= SEATS_PER_SIDE; s++) {
+    seatPool.push({ rowNum: r, side: 'L', seatNum: s, studentIdx: null });
+  }
+  for (let s = 1; s <= SEATS_PER_SIDE; s++) {
+    seatPool.push({ rowNum: r, side: 'R', seatNum: s, studentIdx: null });
+  }
+}
+
+/* Assign students to seats */
+sorted.forEach((stu, idx) => {
+  if (idx < seatPool.length) seatPool[idx].studentIdx = idx;
+});
+
+/* Re-index into a 2D map: seatMap[rowNum][side][seatNum] */
+const seatMap = {};
+for (let r = 1; r <= TOTAL_ROWS; r++) {
+  seatMap[r] = { L:{}, R:{} };
+}
+seatPool.forEach(s => {
+  seatMap[s.rowNum][s.side][s.seatNum] = s.studentIdx;
+});
+
+/* ─── Group → css class ─── */
+function groupClass(group) {
+  return { A1:'a1', A2:'a2', B1:'b1', B2:'b2', T:'t' }[group] || 'vacant';
+}
+function groupLabel(group) {
+  return { A1:'Sec A – Grp A1', A2:'Sec A – Grp A2',
+           B1:'Sec B – Grp B1', B2:'Sec B – Grp B2', T:'Section T' }[group] || group;
+}
+
+/* ─── Render grid ─── */
+const grid = document.getElementById('grid');
+
+for (let r = 1; r <= TOTAL_ROWS; r++) {
+  const rowWrap = document.createElement('div');
+  rowWrap.className = 'row-wrap';
+
+  const lbl = document.createElement('div');
+  lbl.className = 'row-label';
+  lbl.textContent = `R${r}`;
+  rowWrap.appendChild(lbl);
+
+  const leftBlock  = document.createElement('div');
+  leftBlock.className = 'row-seats';
+  const aisle = document.createElement('div');
+  aisle.className = 'aisle-gap';
+  const rightBlock = document.createElement('div');
+  rightBlock.className = 'row-seats';
+
+  if (EMPTY_ROWS.includes(r)) {
+    for (let s = 1; s <= SEATS_PER_SIDE; s++) {
+      leftBlock.appendChild(makeSeat(null, true));
+      rightBlock.appendChild(makeSeat(null, true));
+    }
+  } else {
+    for (let s = 1; s <= SEATS_PER_SIDE; s++) {
+      leftBlock.appendChild(makeSeat(seatMap[r].L[s], false, r, 'L', s));
+      rightBlock.appendChild(makeSeat(seatMap[r].R[s], false, r, 'R', s));
+    }
+  }
+
+  rowWrap.appendChild(leftBlock);
+  rowWrap.appendChild(aisle);
+  rowWrap.appendChild(rightBlock);
+  grid.appendChild(rowWrap);
+}
+
+function makeSeat(studentIdx, isEmpty, row, side, seatNum) {
+  const div = document.createElement('div');
+  div.className = 'seat';
+
+  if (isEmpty) {
+    div.classList.add('empty');
+    return div;
+  }
+
+  if (studentIdx === null || studentIdx === undefined) {
+    div.classList.add('vacant');
+    return div;
+  }
+
+  const stu = sorted[studentIdx];
+  div.classList.add(groupClass(stu.group));
+
+  // Short name (first + last initial)
+  const parts = stu.name.split(' ');
+  const shortName = parts[0] + (parts.length > 1 ? ' ' + parts[parts.length-1][0] + '.' : '');
+  div.textContent = shortName;
+
+  const tip = document.createElement('div');
+  tip.className = 'tooltip';
+  tip.innerHTML = `
+    <div class="t-name">${stu.name}</div>
+    <div class="t-seat">${side}-${row}-${seatNum} | Roll: ${stu.rollNo}</div>
+    <div class="t-grp">${groupLabel(stu.group)}</div>
+  `;
+  div.appendChild(tip);
+
+  return div;
+}
+
+/* ─── Stats ─── */
+const countGroup = g => students.filter(s => s.group === g).length;
+document.getElementById('stat-a').textContent =
+  `${countGroup('A1') + countGroup('A2')} (A1:${countGroup('A1')}, A2:${countGroup('A2')})`;
+document.getElementById('stat-b').textContent =
+  `${countGroup('B1') + countGroup('B2')} (B1:${countGroup('B1')}, B2:${countGroup('B2')})`;
+document.getElementById('stat-t').textContent = countGroup('T');
+document.getElementById('stat-used').textContent = students.length;
+
+/* ─── Directory with filter ─── */
+const filterBar = document.getElementById('filterBar');
+const listEl    = document.getElementById('studentList');
+
+const groups = ['ALL','A1','A2','T','B1','B2'];
+const colors  = { ALL:'#555', A1:'#e05c5c', A2:'#e07a5c', T:'#a85ce0', B1:'#5c9ee0', B2:'#5cc4e0' };
+let activeFilter = 'ALL';
+
+groups.forEach(g => {
+  const btn = document.createElement('button');
+  btn.className = 'filter-btn' + (g === 'ALL' ? ' active' : '');
+  btn.textContent = g;
+  btn.style.background = colors[g];
+  btn.onclick = () => {
+    activeFilter = g;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderList();
+  };
+  filterBar.appendChild(btn);
+});
+
+function renderList() {
+  listEl.innerHTML = '';
+  const filtered = sorted.filter(s => activeFilter === 'ALL' || s.group === activeFilter);
+  filtered.forEach((s, i) => {
+    const card = document.createElement('div');
+    card.className = 'student-card';
+    card.style.borderLeftColor = colors[s.group] || '#555';
+    card.innerHTML = `
+      <div class="sname">${i+1}. ${s.name}</div>
+      <div class="sinfo">${s.rollNo} · ${groupLabel(s.group)} · ${s.gender === 'F' ? '♀ Female' : '♂ Male'}</div>
+    `;
+    listEl.appendChild(card);
+  });
+}
+renderList();
+</script>
+</body>
+</html>
